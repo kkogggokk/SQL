@@ -311,15 +311,47 @@ Self 조인
 - 물리적으로 하나의 테이블을 두개의 테이블처럼 조인하는 것.
 **************************************************** */
 --직원의 ID(emp.emp_id), 이름(emp.emp_name), 상사이름(emp.emp_name)을 조회
+-- result : 106 
 
-select e1.emp_id, e1.emp_name, e1.mgr_id, e2.emp_name
+-- ANSI JOIN
+select e1.emp_id, 
+    e1.emp_name, --직원이름
+    e1.mgr_id, 
+    e2.emp_name -- 상사이름
 from emp e1 join emp e2 -- e1 :부하직원 테이블 , e2: 상사 테이블
 on e1.mgr_id = e2.emp_id;
+
+-- ORACLE JOIN
+select e1.emp_id, 
+    e1.emp_name, --직원이름
+    e1.mgr_id, 
+    e2.emp_name -- 상사이름
+from emp e1, emp e2
+where e1.mgr_id = e2.emp_id;
 
 
 -- TODO : EMP 테이블에서 직원 ID(emp.emp_id)가 110인 직원의 급여(salary)보다 많이 받는 직원들의 id(emp.emp_id), 
 -- 이름(emp.emp_name), 급여(emp.salary)를 직원 ID(emp.emp_id) 오름차순으로 조회.
 
+select e2.emp_id, 
+    e2.emp_name,
+    e2.salary
+from emp e1 join emp e2 on e1. salary < e2.salary -- e1 : emp_id 110 직원, e2 : 조회할 직원 정보 
+where e1.emp_id = 110
+order by e2.salary;
+
+select emp_name, salary
+from emp 
+where salary > (select salary from emp where emp_id = 110)
+order by salary;
+
+-- 카티션 곱 : 조인연산을 잘못해서 두 테이블의 모든 행들이  cross로 join된 것 
+-- N개 TB : join 연산 최소 n-1개 필요 
+-- 오라클 조인에서 주로 발생하는 현상. 안시 조인에서는 발생안함. why ? on 없으면 구문에러. cross조인이 따로 있다. 
+select * from emp e, dept d order by 1;  
+
+
+select * from emp cross join dept;
 
 
 /* ****************************************************
@@ -341,20 +373,40 @@ from 테이블a [LEFT | RIGHT | FULL] OUTER JOIN 테이블b ON 조인조건
 **************************************************** */
 -- 직원의 id(emp.emp_id), 이름(emp.emp_name), 급여(emp.salary), 부서명(dept.dept_name), 부서위치(dept.loc)를 조회. 
 -- 부서가 없는 직원의 정보도 나오도록 조회. (부서정보는 null). dept_name의 내림차순으로 정렬한다.
+-- emp : 소스테이블, dept : 타겟테이블
+-- 아우터 조인은 타겟에 (+)를 주기때문에 소스, 타겟 테이블이 무엇인지 구분하는게 중요하다. 
+-- result : 107 
 
+select e.emp_id, e.emp_name, e.salary, d.dept_name, d.loc
+from emp e left outer join dept d on e.dept_id = d.dept_id 
+order by d.dept_name desc;
 
-
+--오라클 문법
+select e.emp_id, e.emp_name, e.salary, d.dept_name, d.loc
+from emp e, dept d 
+where e.dept_id = d.dept_id(+) -- e: 소스, d: 타겟 , 타겟에 +를 준다. 
+order by d.dept_name desc ;
 
 -- 모든 직원의 id(emp.emp_id), 이름(emp.emp_name), 부서_id(emp.dept_id)를 조회하는데
 -- 부서_id가 80 인 직원들은 부서명(dept.dept_name)과 부서위치(dept.loc) 도 같이 출력한다. (부서 ID가 80이 아니면 null이 나오도록)
 
+select e.emp_id, e.emp_name, e.dept_id, d.dept_name, d.loc
+from emp e left join dept d on e.dept_id = d.dept_id and d.dept_id = 80; -- 타겟테이블의 추가 조건
+-- where d.dept_id = 80;
 
-
+--오라클 조인
+select e.emp_id, e.emp_name, e.salary, d.dept_name, d.loc
+from emp e, dept d 
+where e.dept_id = d.dept_id(+) -- e: 소스, d: 타겟 , 타겟에 +를 준다. 
+and d.dept_id = 80 ; -- 타겟에 대한 조인연산
 
 --TODO: 직원_id(emp.emp_id)가 100, 110, 120, 130, 140인 직원의 ID(emp.emp_id), 이름(emp.emp_name), 업무명(job.job_title) 을 조회. 
 -- 업무명이 없을 경우 '미배정' 으로 조회
+-- result : 5 
 
-
+select * 
+from emp e left join job j on e.job_id = j.job_id 
+where emp_id in (100,110,120,130,140); 
 
 --TODO: 부서의 ID(dept.dept_id), 부서이름(dept.dept_name)과 그 부서에 속한 직원들의 수를 조회. 
 --      직원이 없는 부서는 0이 나오도록 조회하고 직원수가 많은 부서 순서로 조회.
